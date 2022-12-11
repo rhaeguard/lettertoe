@@ -60,7 +60,7 @@ isJust maybe =
 
 getWord : List Int -> List (Maybe String) -> String
 getWord indices list =
-    List.foldl
+    List.foldr
     (++)
     ""
     (List.map
@@ -71,19 +71,20 @@ getWord indices list =
         (List.indexedMap (\ix maybe -> if (List.member ix indices) then maybe else Nothing) list))
         
 
-checkIfWon : Model -> Bool
-checkIfWon model =
+checkIfWon : List (Maybe String) -> Model -> Bool
+checkIfWon cells model =
     let
         currentWords = 
             [
-                getWord [0, 1, 2] model.cells,
-                getWord [3, 4, 5] model.cells,
-                getWord [6, 7, 8] model.cells,
-                getWord [0, 3, 6] model.cells,
-                getWord [1, 4, 7] model.cells,
-                getWord [2, 5, 8] model.cells
+                getWord [0, 1, 2] cells,
+                getWord [3, 4, 5] cells,
+                getWord [6, 7, 8] cells,
+                getWord [0, 3, 6] cells,
+                getWord [1, 4, 7] cells,
+                getWord [2, 5, 8] cells
             ]
-        _ = Debug.log (Debug.toString currentWords)
+        _ = Debug.log "current: " cells
+        _ = Debug.log "model: " currentWords
     in
         List.any
         (\word -> List.member word model.actualWords)
@@ -104,13 +105,16 @@ update msg model =
     case msg of
         Set -> 
             case model.currentUserCell of
-                Just index -> { 
-                    model | 
-                    cells = (updateSingleElementInList model.cells index (model.currentUserSelection)), 
-                    promptOpen = False,
-                    availableLetters = (dropFirstElement model.availableLetters model.currentUserSelection),
-                    didWin = (checkIfWon model)
-                    }
+                Just index -> 
+                    let 
+                        newCells = (updateSingleElementInList model.cells index (model.currentUserSelection))
+                    in 
+                        { model | 
+                            cells = newCells, 
+                            promptOpen = False,
+                            availableLetters = (dropFirstElement model.availableLetters model.currentUserSelection),
+                            didWin = (checkIfWon newCells model)
+                        }
                 Nothing -> model
         SetSelectedOption value -> 
             { model | currentUserSelection = Just value}
@@ -222,6 +226,8 @@ middleColumn =
 
 dialogAttributes model = if model.promptOpen then [attribute "open" ""] else []
 
+winDialogAttributes model = if model.didWin then [attribute "open" ""] else []
+
 view : Model -> Html (Msg Int String)
 view model = 
     div applicationContainerStyle 
@@ -238,7 +244,7 @@ view model =
                 select ([
                     onInput SetSelectedOption
                 ])
-                    (List.indexedMap (\ix letter -> option ([
+                    (List.map (\letter -> option ([
                         value letter
                     ]) [
                         text letter
@@ -248,6 +254,9 @@ view model =
                 ] [
                     text "Confirm"
                 ]
+            ],
+            dialog (winDialogAttributes model) [
+                h1 [] [ text "Victory!" ]
             ]
         ],
         div (playerColumn "green") [ text "Player 2" ]
