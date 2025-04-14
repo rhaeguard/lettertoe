@@ -1,11 +1,22 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"math"
+	"math/rand"
+	"os"
+	"strings"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
+
+type JsonPayload struct {
+	Three []string `json:"3"`
+	Four  []string `json:"4"`
+	Five  []string `json:"5"`
+}
 
 const GAME_BOARD_SIZE = 3
 const LETTER_BOARD_HEIGHT = 2
@@ -18,11 +29,64 @@ var GAME_BOARD = [GAME_BOARD_SIZE][GAME_BOARD_SIZE]uint8{
 }
 
 var LETTER_BOARD = [LETTER_BOARD_HEIGHT][LETTER_BOARD_WIDTH]uint8{
-	{'A', 'B', 'C', 'D', 'X'},
-	{'U', 'G', ' ', 'E', 'S'},
+	{' ', ' ', ' ', ' ', ' '},
+	{' ', ' ', ' ', ' ', ' '},
+}
+
+var WordsData JsonPayload
+
+func determineLetters() {
+	words := WordsData.Three
+
+	rand.Shuffle(len(words), func(i, j int) { words[i], words[j] = words[j], words[i] })
+
+	seenLetters := []rune{
+		' ',
+	}
+
+	index := 0
+
+	for index < 3 {
+		word := words[index]
+
+		for _, ch := range strings.ToUpper(word) {
+			seenLetters = append(seenLetters, ch)
+		}
+
+		index += 1
+	}
+
+	rand.Shuffle(len(seenLetters), func(i, j int) { seenLetters[i], seenLetters[j] = seenLetters[j], seenLetters[i] })
+
+	index = 0
+
+	for i := range LETTER_BOARD_HEIGHT {
+		for j := range LETTER_BOARD_WIDTH {
+			LETTER_BOARD[i][j] = uint8(seenLetters[index])
+			index += 1
+		}
+	}
 }
 
 func main() {
+
+	jsonFile, err := os.Open("words.json")
+	if err != nil {
+		panic("could not open the words.json file")
+	}
+	defer jsonFile.Close()
+
+	jsonBytes, err := io.ReadAll(jsonFile)
+	if err != nil {
+		panic("could not read the words.json file bytes")
+	}
+
+	if err := json.Unmarshal(jsonBytes, &WordsData); err != nil {
+		panic("could not unmarshall the words.json file")
+	}
+
+	determineLetters()
+
 	ScreenWidth, ScreenHeight := int32(700), int32(1000)
 	FontSize := int32(60)
 
